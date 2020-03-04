@@ -41,7 +41,7 @@
         </template>
         <!--操作-->
         <template v-slot:opt="scope">
-          <el-button type="primary" icon="el-icon-edit" size="mini">编辑</el-button>
+          <el-button type="primary" icon="el-icon-edit" size="mini" @click="showEditDialog(scope.row.cat_id)">编辑</el-button>
           <el-button type="danger" icon="el-icon-delete" size="mini" @click="removeCateById(scope.row.cat_id)">删除</el-button>
         </template>
       </tree-table>
@@ -88,6 +88,23 @@
         <el-button type="primary" @click="addCate">确 定</el-button>
       </span>
     </el-dialog>
+    <!--修改分类对话框-->
+        <el-dialog
+          title="修改分类"
+          :visible.sync="editDialogVisible"
+          width="50%"
+          @close="editDialogClosed"
+          >
+          <el-form :model="editForm" :rules="editFormRules" ref="editFormRef" label-width="70px" >
+            <el-form-item label="分类名称" >
+              <el-input v-model="editForm.cat_name" ></el-input>
+            </el-form-item>
+          </el-form>
+          <span slot="footer" class="dialog-footer">
+            <el-button @click="editDialogVisible = false">取 消</el-button>
+            <el-button type="primary" @click="editCateInfo">确 定</el-button>
+          </span>
+        </el-dialog>
   </div>
 </template>
 <script>
@@ -157,7 +174,17 @@ export default {
         children: 'children'
       },
       // 选中的父级分类id数组
-      selectedKeys: []
+      selectedKeys: [],
+      // 编辑对话框的展示与隐藏
+      editDialogVisible: false,
+      // 编辑对话框
+      editForm: [],
+      // 编辑规则
+      editFormRules: {
+        cat_name: [
+          { required: true, message: '请输入分类名称', trigger: 'blur' }
+        ]
+      }
     }
   },
   created() {
@@ -252,14 +279,41 @@ export default {
       if (confirmResult !== 'confirm') {
         return this.$message.info('已取消删除')
       }
-      console.log(id)
       const { data: res } = await this.$http.delete('categories/' + id)
-      console.log(res.data)
       if (res.meta.status !== 200) {
         return this.$message.error('删除分类失败')
       }
       this.$message.success('删除分类成功')
       this.getCateList()
+    },
+    // 展示分类的对话框
+    async showEditDialog (id) {
+      const { data: res } = await this.$http.get('categories/' + id)
+      if (res.meta.status !== 200) {
+        return this.$message.error('查询用户失败')
+      }
+      this.editForm = res.data
+      this.editDialogVisible = true
+    },
+    // 监听修改用户对话框的关闭事件
+    editDialogClosed () {
+      this.$refs.editFormRef.resetFields()
+    },
+    // 修改修改用户信息并提交
+    editCateInfo () {
+      this.$refs.editFormRef.validate(async valid => {
+        if (!valid) return
+        // 发起修改用户信息的数据请求
+        const { data: res } = await this.$http.put('categories/' + this.editForm.cat_id, { cat_name: this.editForm.cat_name })
+        if (res.meta.status !== 200) {
+          this.$message.error('修改分类失败')
+        }
+        // 隐藏添加用户的对话框
+        this.editDialogVisible = false
+        this.$message.success('修改分类成功')
+        // 重新获取分类列表
+        this.getCateList()
+      })
     }
   }
 }
